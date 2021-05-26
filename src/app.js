@@ -9,8 +9,7 @@ app.set('sequelize', sequelize)
 app.set('models', sequelize.models)
 
 /**
- * Returns the contract by id of the profile calling
- * @returns contract by id
+ * @returns a contract by id of the profile calling
  */
 app.get('/contracts/:id', getProfile, async (req, res) => {
     const { Contract } = req.app.get('models')
@@ -25,8 +24,7 @@ app.get('/contracts/:id', getProfile, async (req, res) => {
 })
 
 /**
- * Returns a list of non terminated contracts belonging to a user
- * @returns contracts
+ * @returns a list of non terminated contracts belonging to a user
  */
 app.get('/contracts', getProfile, async (req, res) => {
     const { Contract } = req.app.get('models')
@@ -37,6 +35,37 @@ app.get('/contracts', getProfile, async (req, res) => {
 
     if (!contracts || !contracts.length) return res.status(404).end()
     res.json(contracts)
+})
+
+/**
+ * @returns a list of unpaid jobs for a user
+ */
+app.get('/jobs/unpaid', getProfile, async (req, res) => {
+    const { Contract, Job } = req.app.get('models')
+    const profileId = req.get('profile_id')
+
+    const contracts = await Contract.findAll({
+        where: { status: { [Sequelize.Op.eq]: 'in_progress' }, [Sequelize.Op.or]: [{ ContractorId: profileId }, { ClientId: profileId }] }
+    });
+
+    const jobs = await Job.findAll({
+        where: { paid: { [Sequelize.Op.not]: true }, ContractID: contracts.map((contract) => contract.id) },
+    });
+
+    // another option would be use "include",
+    // but I didn't pick it because it add uneeded elements to the response
+    //
+    // const jobs = await Job.findAll({
+    //     where: { paid: { [Sequelize.Op.not]: true } },
+    //     include: {
+    //         model: Contract,
+    //         required: true,
+    //         where: { status: { [Sequelize.Op.eq]: 'in_progress' }, [Sequelize.Op.or]: [{ ContractorId: profileId }, { ClientId: profileId }] }
+    //     }
+    // });
+
+    if (!jobs || !jobs.length) return res.status(404).end()
+    res.json(jobs)
 })
 
 module.exports = app;
