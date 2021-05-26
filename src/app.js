@@ -23,4 +23,20 @@ app.get('/contracts/:id', getProfile, async (req, res) => {
     if (!contract) return res.status(404).end()
     res.json(contract)
 })
+
+/**
+ * Returns a list of non terminated contracts belonging to a user
+ * @returns contracts
+ */
+app.get('/contracts', getProfile, async (req, res) => {
+    const { Contract } = req.app.get('models')
+    const profileId = req.get('profile_id')
+    const contract = await Contract.findAll({
+        where: { status: { [Sequelize.Op.not]: 'terminated' }, [Sequelize.Op.or]: [{ ContractorId: profileId }, { ClientId: profileId }] }
+    });
+
+    if (!contract) return res.status(404).end()
+    res.json(contract)
+})
+
 module.exports = app;
