@@ -151,4 +151,34 @@ app.post('/balances/deposit/:userId', getProfile, async (req, res) => {
     res.json(user)
 })
 
+/**
+ * @returns the most redituable profession
+ */
+app.get('/admin/best-profession', getProfile, async (req, res) => {
+    const { Contract, Profile, Job } = req.app.get('models')
+    const { start, end } = req.query
+
+    const job = await Job.findOne({
+        where: {
+            paid: true,
+            paymentDate: { [Op.between]: [start, end] }
+        },
+        order: [[sequelize.fn('SUM', sequelize.col('price')), 'DESC']],
+        group: 'Contract.Contractor.profession',
+        include: [{
+            model: Contract,
+            required: true,
+            include: [{
+                model: Profile,
+                as: 'Contractor',
+                attributes: ['profession'],
+                required: true
+            }]
+        }],
+    });
+
+    if (!job) return res.status(404).end()
+    res.json(job.Contract.Contractor.profession)
+})
+
 module.exports = app;
