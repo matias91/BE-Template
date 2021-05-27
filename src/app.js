@@ -181,4 +181,40 @@ app.get('/admin/best-profession', getProfile, async (req, res) => {
     res.json(job.Contract.Contractor.profession)
 })
 
+/**
+ * @returns the clients that paid the most for jobs
+ */
+app.get('/admin/best-clients', getProfile, async (req, res) => {
+    const { Contract, Profile, Job } = req.app.get('models')
+    const { start, end, limit = 2 } = req.query
+
+    const jobs = await Job.findAll({
+        where: {
+            paid: true,
+            paymentDate: { [Op.between]: [start, end] }
+        },
+        attributes: [
+            [sequelize.col('Contract.Client.id'), 'id'],
+            [sequelize.literal("firstName || ' ' || lastName"), 'fullName'],
+            [sequelize.fn('sum', sequelize.col('price')), 'paid']
+        ],
+        order: sequelize.literal('paid DESC'),
+        group: 'Contract.Client.id',
+        include: [{
+            model: Contract,
+            required: true,
+            attributes: [],
+            include: [{
+                model: Profile,
+                as: 'Client',
+                required: true
+            }]
+        }],
+        limit
+    });
+
+    if (!jobs) return res.status(404).end()
+    res.json(jobs)
+})
+
 module.exports = app;
