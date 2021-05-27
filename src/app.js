@@ -57,11 +57,11 @@ app.get('/jobs/unpaid', getProfile, async (req, res) => {
     //
     // const jobs = await Job.findAll({
     //     where: { paid: { [Op.not]: true } },
-    //     include: {
+    //     include: [{
     //         model: Contract,
     //         required: true,
     //         where: { status: { [Op.eq]: 'in_progress' }, [Op.or]: [{ ContractorId: profileId }, { ClientId: profileId }] }
-    //     }
+    //     }]
     // });
 
     if (!jobs || !jobs.length) return res.status(404).end()
@@ -69,7 +69,7 @@ app.get('/jobs/unpaid', getProfile, async (req, res) => {
 })
 
 /**
- * @returns a paid job
+ * @updates a job payment
  */
 app.post('/jobs/:job_id/pay', getProfile, async (req, res) => {
     const { Contract, Profile, Job } = req.app.get('models')
@@ -118,6 +118,37 @@ app.post('/jobs/:job_id/pay', getProfile, async (req, res) => {
 
         res.json({ success: false, error })
     }
+})
+
+/**
+ * @updates a user balance
+ */
+app.post('/balances/deposit/:userId', getProfile, async (req, res) => {
+    const { Contract, Profile, Job } = req.app.get('models')
+    const { userId } = req.params
+    const { amount } = req.body
+
+    if (!amount || amount < 1) return res.json({ success: false, error: 'Invalid amount' })
+
+    const user = await Profile.findOne({ where: { id: userId } })
+
+    if (user.type !== 'client') return res.json({ success: false, error: 'Invalid profile type' })
+
+    const totalAmountToPay = await Job.sum('price', {
+        where: { paid: { [Op.not]: true } },
+        include: [{
+            model: Contract,
+            required: true,
+            where: { ClientId: userId }
+        }]
+    });
+
+    if (amount > totalAmountToPay * .25) return res.json({ success: false, error: 'Allowed amount exceeded' })
+
+    user.balance += amount
+    user.save()
+
+    res.json(user)
 })
 
 module.exports = app;
