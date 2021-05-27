@@ -163,22 +163,26 @@ app.get('/admin/best-profession', getProfile, async (req, res) => {
             paid: true,
             paymentDate: { [Op.between]: [start, end] }
         },
-        order: [[sequelize.fn('SUM', sequelize.col('price')), 'DESC']],
+        attributes: [
+            [sequelize.col('Contract.Contractor.profession'), 'profession'],
+            [sequelize.fn('sum', sequelize.col('price')), 'totalEarned']
+        ],
+        order: sequelize.literal('totalEarned DESC'),
         group: 'Contract.Contractor.profession',
         include: [{
             model: Contract,
             required: true,
+            attributes: [],
             include: [{
                 model: Profile,
                 as: 'Contractor',
-                attributes: ['profession'],
                 required: true
             }]
         }],
     });
 
     if (!job) return res.status(404).end()
-    res.json(job.Contract.Contractor.profession)
+    res.json(job)
 })
 
 /**
