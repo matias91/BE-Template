@@ -44,25 +44,15 @@ app.get('/jobs/unpaid', getProfile, async (req, res) => {
     const { Contract, Job } = req.app.get('models')
     const profileId = req.get('profile_id')
 
-    const contracts = await Contract.findAll({
-        where: { status: { [Op.eq]: 'in_progress' }, [Op.or]: [{ ContractorId: profileId }, { ClientId: profileId }] }
-    });
-
     const jobs = await Job.findAll({
-        where: { paid: { [Op.not]: true }, ContractID: contracts.map((contract) => contract.id) },
+        where: { paid: { [Op.not]: true } },
+        include: [{
+            model: Contract,
+            required: true,
+            attributes: [],
+            where: { status: { [Op.eq]: 'in_progress' }, [Op.or]: [{ ContractorId: profileId }, { ClientId: profileId }] }
+        }]
     });
-
-    // another option would be use "include",
-    // but I didn't pick it because it add uneeded elements to the response
-    //
-    // const jobs = await Job.findAll({
-    //     where: { paid: { [Op.not]: true } },
-    //     include: [{
-    //         model: Contract,
-    //         required: true,
-    //         where: { status: { [Op.eq]: 'in_progress' }, [Op.or]: [{ ContractorId: profileId }, { ClientId: profileId }] }
-    //     }]
-    // });
 
     if (!jobs || !jobs.length) return res.status(404).end()
     res.json(jobs)
